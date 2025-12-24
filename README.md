@@ -1,173 +1,180 @@
 [![Security Gate TDD](https://github.com/ghazal-dib/security-gate-tdd/actions/workflows/pipeline.yml/badge.svg)](https://github.com/ghazal-dib/security-gate-tdd/actions/workflows/pipeline.yml)
-# 🔐 Security Gate – DevSecOps (TDD-Based)
+---
 
-A **Python-based Security Gate** built using **Test-Driven Development (TDD)** principles and integrated into a **GitHub Actions CI/CD pipeline**.
+# 🔐 Security Gate TDD (DevSecOps Mini Project)
 
-This project simulates how real DevSecOps teams **block, warn, or allow deployments** based on security scan results.
+A **Test-Driven DevSecOps Security Gate** implemented in Python and integrated with **GitHub Actions CI/CD**.
+This project simulates how real-world security gates block or warn deployments based on automated scan results.
 
 ---
 
-## 🎯 Project Goals
+## 🎯 Project Objective
 
-This project demonstrates how to:
+The goal of this project is to demonstrate **how DevSecOps teams enforce security policies automatically** inside CI/CD pipelines using:
 
-* Apply **Test Driven Development (TDD)** to security logic
-* Safely consume scanner outputs (even malformed data)
-* Enforce security decisions automatically in CI/CD
-* Produce **machine-readable security decisions** (JSON artifacts)
-* Fail fast on critical security issues
+* Test Driven Development (TDD)
+* Mocking & patching
+* Security decision logic
+* CI/CD fail-fast gates
+* Artifacts for auditability
+
+This mirrors how security gates are implemented in production pipelines.
 
 ---
 
-## 🧱 Project Structure
+## 🧱 Architecture Overview
+
+```
+scanner.py  ──▶ scan_result.json
+                   │
+                   ▼
+             gate.py (decision engine)
+                   │
+                   ▼
+          gate_decision.json + exit code
+                   │
+                   ▼
+          GitHub Actions pipeline
+```
+
+* **scanner.py** simulates a security scanner
+* **gate.py** evaluates scan results and decides:
+
+  * `BLOCK`
+  * `WARN`
+  * `ALLOW`
+* **test_gate.py** validates logic using TDD and mocks
+* **pipeline.yml** enforces security in CI/CD
+
+---
+
+## 📂 Project Structure
 
 ```
 security-gate-tdd/
-│
-├── gate.py                # Security decision logic
-├── scanner.py             # Simulated security scanner
-├── test_gate.py           # Unit tests (TDD, mocking, patching)
-├── scan_result.json       # Example scan output (ignored in Git)
-├── gate_decision.json     # Gate decision artifact (generated)
-├── requirements.txt       # Python dependencies
-├── .gitignore             # Ignored files & caches
-│
+├── gate.py                 # Security gate decision engine
+├── scanner.py              # Scanner simulation
+├── test_gate.py            # Unit tests (TDD)
+├── requirements.txt        # Python dependencies
+├── README.md
+├── .gitignore
 └── .github/
     └── workflows/
-        └── pipeline.yml   # GitHub Actions CI/CD pipeline
+        └── pipeline.yml
 ```
 
 ---
 
-## ⚙️ How It Works
+## ⚙️ How the Security Gate Works
 
-### 1️⃣ Security Scan (scanner.py)
+### 1️⃣ Scan Result Loading
 
-A simulated scanner produces a JSON file:
+* Reads `scan_result.json`
+* Handles missing / invalid files safely
+* Protects against malformed data
 
-```json
-{
-  "critical": 0,
-  "high": 1,
-  "medium": 3
-}
-```
+### 2️⃣ Data Normalization
 
-In real projects, this could be:
+* Uses `_to_int()` to safely convert values
+* Prevents crashes if scanner outputs strings or invalid types
 
-* Trivy
-* Snyk
-* Semgrep
-* OWASP Dependency-Check
+### 3️⃣ Decision Rules
 
----
+| Condition          | Result  |
+| ------------------ | ------- |
+| Any `critical > 0` | ❌ BLOCK |
+| Any `high > 0`     | ⚠️ WARN |
+| `medium ≥ 5`       | ⚠️ WARN |
+| Otherwise          | ✅ ALLOW |
 
-### 2️⃣ Security Gate Logic (gate.py)
+### 4️⃣ Output
 
-The gate evaluates the scan results using clear rules:
+* Writes decision to `gate_decision.json`
+* Exits with:
 
-| Condition      | Decision |
-| -------------- | -------- |
-| `critical > 0` | ❌ BLOCK  |
-| `high > 0`     | ⚠️ WARN  |
-| `medium >= 5`  | ⚠️ WARN  |
-| Otherwise      | ✅ ALLOW  |
-
-The gate:
-
-* Defends against missing files
-* Defends against invalid JSON
-* Defends against wrong data types
-* Always returns a safe decision
-
----
-
-### 3️⃣ Decision Artifact
-
-After evaluation, the gate writes a structured artifact:
-
-```json
-{
-  "decision": "WARN",
-  "counts": {
-    "critical": 0,
-    "high": 1,
-    "medium": 3
-  },
-  "generated_at_utc": "2025-01-01T12:00:00Z"
-}
-```
-
-This allows:
-
-* Auditing
-* Reporting
-* Downstream automation
+  * `1` → pipeline blocked
+  * `0` → pipeline allowed
 
 ---
 
 ## 🧪 Testing Strategy (TDD)
 
-* All logic is covered by **unit tests**
-* External dependencies are **mocked**
-* Scanner input is **patched**
-* Edge cases are tested:
+* Tests written **before** implementation
+* Uses `unittest` + `patch`
+* Scanner is **mocked**, not executed
+* Covers:
 
-  * Empty report
-  * Non-dictionary report
-  * String instead of numbers
-  * Missing fields
+  * Critical findings
+  * High findings
+  * Medium thresholds
+  * Empty reports
+  * Invalid scanner output
 
-Example:
-
-```python
-@patch("gate.load_scan_result")
-def test_block_when_critical_found(self, mock_scanner):
-    mock_scanner.return_value = {"critical": 1}
-    decision, *_ = security_gate()
-    self.assertEqual(decision, "BLOCK")
-```
+This ensures **pure logic testing**, not external dependency testing.
 
 ---
 
 ## 🚀 CI/CD Pipeline
 
-Implemented with **GitHub Actions**:
+The GitHub Actions pipeline enforces security automatically:
 
-### Pipeline Flow
+### Pipeline Stages
 
-1. Run unit tests (`pytest`)
-2. Run scanner
-3. Run security gate
-4. Upload artifacts:
+1. **Tests job**
 
-   * `scan_result.json`
-   * `gate_decision.json`
-5. Fail pipeline on **BLOCK**
+   * Runs unit tests
+   * Fails pipeline if logic breaks
 
----
+2. **Gate job** (runs only if tests pass)
 
-## 🛡️ Why This Project Is Professional
+   * Runs scanner
+   * Uploads scan result artifact
+   * Runs security gate
+   * Uploads gate decision artifact
 
-This project reflects **real-world DevSecOps practices**:
-
-* ✅ Test-driven security logic
-* ✅ Fail-fast pipeline enforcement
-* ✅ Safe handling of untrusted scanner output
-* ✅ Auditable security decisions
-* ✅ CI-friendly exit codes
-* ✅ Clean separation of concerns
+Artifacts provide **traceability and audit evidence**.
 
 ---
 
-## 🧠 Skills Demonstrated
+## 📦 Artifacts Generated
 
-* Python (clean, defensive coding)
-* Test Driven Development (TDD)
-* Mocking & patching (`unittest.mock`)
-* CI/CD security gates
+* `scan_result.json` → scanner output
+* `gate_decision.json` → final security decision
+
+Both are uploaded as GitHub Actions artifacts.
+
+---
+
+## 🛠 Technologies Used
+
+* Python 3.12
+* unittest & pytest
 * GitHub Actions
-* JSON-based security automation
+* TDD & mocking
+* JSON-based security reporting
+
+---
+
+## 🧠 Why This Project Matters
+
+This project demonstrates **real DevSecOps skills**, including:
+
+* Writing security logic with TDD
+* Isolating dependencies via mocks
+* Enforcing security via CI/CD
+* Producing auditable security decisions
+* Fail-fast deployment strategies
+
+✅ Suitable for **Junior / Associate DevSecOps roles**
+
+---
+
+## 🔮 Future Improvements
+
+* Replace scanner simulation with real tools (Trivy, Semgrep)
+* Add severity weighting
+* Support SARIF input
+* Add Slack / Teams notifications
 
 ---
 
@@ -186,22 +193,9 @@ pytest
 
 ---
 
-## 📌 Future Improvements (Optional)
+## 📜 License
 
-* Replace scanner with real tools (Trivy / Semgrep)
-* Add severity thresholds via config
-* Add SARIF support
-* Upload results to security dashboards
-
----
-
-## 👩‍💻 Target Audience
-
-This project is suitable for:
-
-* Junior DevSecOps Engineers
-* Security Automation roles
-* CI/CD-focused security teams
+Educational / Demonstration project.
 
 ---
 
