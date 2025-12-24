@@ -1,3 +1,4 @@
+[![Security Gate TDD](https://github.com/ghazal-dib/security-gate-tdd/actions/workflows/pipeline.yml/badge.svg)](https://github.com/ghazal-dib/security-gate-tdd/actions/workflows/pipeline.yml)
 # 🔐 Security Gate – DevSecOps (TDD-Based)
 
 A **Python-based Security Gate** built using **Test-Driven Development (TDD)** principles and integrated into a **GitHub Actions CI/CD pipeline**.
